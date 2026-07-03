@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SimpleChat</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface-light: #1e1e2a;
+      --primary: #6c5ce7;
+      --primary-soft: #8b7cf0;
+      --text: #e8e8f0;
+      --text-secondary: #9090a0;
+      --border: #2a2a38;
+      --online: #00c9a7;
+      --danger: #ff6b6b;
+      --radius: 18px;
+      --radius-sm: 12px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Auth Screen */
+    .auth-screen {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 40px 30px;
+      width: 380px;
+      max-width: 90vw;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      border: 1px solid var(--border);
+    }
+    .auth-screen .icon { font-size: 48px; margin-bottom: 12px; }
+    .auth-screen h2 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+    .auth-screen p { color: var(--text-secondary); font-size: 13px; margin-bottom: 28px; }
+    .auth-screen input {
+      width: 100%; padding: 14px 16px; margin-bottom: 12px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--surface-light); color: var(--text); font-size: 16px;
+      outline: none; text-align: center;
+    }
+    .auth-screen input:focus { border-color: var(--primary); }
+    .auth-buttons { display: flex; gap: 10px; margin-top: 8px; }
+    .btn {
+      padding: 14px 20px; border-radius: 30px; border: none;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s;
+      flex: 1;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-soft); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--primary); }
+    .auth-error { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+    /* Chat Container */
+    .app-container {
+      width: 100vw; height: 100vh; max-width: 1000px; max-height: 100vh;
+      background: var(--surface); display: flex; flex-direction: column;
+      border-radius: 0; overflow: hidden; box-shadow: none;
+    }
+    @media (min-width: 800px) {
+      .app-container { border-radius: 24px; max-height: 95vh; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border:1px solid var(--border); }
+    }
+
+    /* Header */
+    .app-header {
+      padding: 16px 20px; background: var(--surface-light);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .app-header h3 { font-size: 18px; font-weight: 600; }
+    .header-actions { display: flex; gap: 12px; }
+    .icon-btn {
+      background: none; border: none; color: var(--text);
+      font-size: 20px; cursor: pointer; padding: 6px;
+      border-radius: 50%; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,0.1); }
+
+    /* Chat List (Main Screen) */
+    .chat-list-screen { flex:1; overflow-y:auto; padding: 8px 0; }
+    .chat-item {
+      display: flex; align-items: center; gap: 14px; padding: 14px 20px;
+      cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.2s;
+    }
+    .chat-item:hover { background: rgba(108,92,231,0.08); }
+    .chat-avatar {
+      width: 48px; height: 48px; border-radius: 50%; background: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 18px; color: #fff; flex-shrink: 0;
+    }
+    .chat-info { flex:1; min-width:0; }
+    .chat-name {
+      font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 6px;
+    }
+    .online-badge { width: 8px; height: 8px; border-radius: 50%; background: var(--online); }
+    .last-message {
+      font-size: 13px; color: var(--text-secondary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .empty-chat-list {
+      text-align: center; color: var(--text-secondary); padding: 40px 20px;
+    }
+
+    /* Chat Screen */
+    .chat-screen { flex:1; display:flex; flex-direction:column; }
+    .chat-messages { flex:1; overflow-y:auto; padding: 20px; display:flex; flex-direction:column; gap:10px; }
+    .msg-row { display:flex; gap:10px; max-width:80%; }
+    .msg-row.mine { align-self:flex-end; flex-direction:row-reverse; }
+    .msg-row.mine .msg-bubble { background: var(--primary); color:#fff; border-radius:18px 18px 4px 18px; }
+    .msg-row.other .msg-bubble { background: var(--surface-light); border-radius:18px 18px 18px 4px; }
+    .msg-row.system { align-self:center; max-width:90%; }
+    .msg-row.system .msg-bubble {
+      background: transparent; border:1px dashed var(--border);
+      color: var(--text-secondary); font-style:italic; font-size:13px;
+      border-radius:20px; padding:8px 16px;
+    }
+    .msg-avatar {
+      width:34px; height:34px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; flex-shrink:0;
+      align-self:flex-end;
+    }
+    .msg-row.mine .msg-avatar { display:none; }
+    .msg-sender { font-size:11px; color:var(--text-secondary); font-weight:600; margin-bottom:2px; }
+    .msg-row.mine .msg-sender { text-align:right; color:#c4b8ff; }
+    .msg-bubble { padding:10px 16px; font-size:15px; line-height:1.4; word-break:break-word; }
+    .msg-time { font-size:10px; color:var(--text-secondary); margin-top:2px; }
+    .typing-hint { padding:6px 20px; font-size:12px; color:var(--text-secondary); font-style:italic; min-height:24px; }
+    .chat-input-area { padding:14px 20px; border-top:1px solid var(--border); display:flex; gap:10px; align-items:center; background:var(--surface); }
+    .chat-input-area input { flex:1; padding:12px 18px; border-radius:28px; border:1px solid var(--border); background:var(--surface-light); color:var(--text); font-size:15px; outline:none; }
+    .chat-input-area input:focus { border-color:var(--primary); }
+    .send-btn { width:46px; height:46px; border-radius:50%; border:none; background:var(--primary); color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+    /* Search User Dialog */
+    .search-overlay {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center;
+      z-index: 10;
+    }
+    .search-box {
+      background: var(--surface); padding: 24px; border-radius: 20px;
+      width: 320px; max-width: 90vw; text-align: center;
+    }
+    .search-box h4 { margin-bottom: 16px; }
+    .search-box input {
+      width:100%; padding:12px; border-radius: var(--radius-sm);
+      border:1px solid var(--border); background:var(--surface-light);
+      color:var(--text); font-size:15px; outline:none; text-align:center;
+    }
+    .search-box input:focus { border-color:var(--primary); }
+    .search-actions { display:flex; gap:10px; margin-top:16px; }
+    .search-actions button { flex:1; }
+  </style>
+</head>
+<body>
+  <!-- AUTH SCREEN -->
+  <div class="auth-screen" id="authScreen">
+    <div class="icon">💬</div>
+    <h2>SimpleChat</h2>
+    <p>Fast · Free · Simple</p>
+    <input type="text" id="authUsername" placeholder="Username" maxlength="20">
+    <input type="password" id="authPassword" placeholder="Password" maxlength="30">
+    <div class="auth-buttons">
+      <button class="btn btn-primary" id="btnLogin">Login</button>
+      <button class="btn btn-outline" id="btnRegister">Register</button>
+    </div>
+    <div class="auth-error" id="authError"></div>
+  </div>
+
+  <!-- MAIN APP (hidden initially) -->
+  <div class="app-container" id="appContainer" style="display:none;">
+    <!-- HEADER -->
+    <div class="app-header" id="mainHeader">
+      <h3>💬 Chats</h3>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnNewChat" title="New Chat">＋</button>
+        <button class="icon-btn" id="btnLogout" title="Logout">⏻</button>
+      </div>
+    </div>
+
+    <!-- CHAT LIST SCREEN -->
+    <div class="chat-list-screen" id="chatListScreen"></div>
+
+    <!-- CHAT SCREEN (hidden) -->
+    <div class="chat-screen" id="chatScreen" style="display:none;">
+      <div class="app-header">
+        <button class="icon-btn" id="btnBack"><</button>
+        <h3 id="chatPartnerName"></h3>
+        <div></div>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="typing-hint" id="typingHint"></div>
+      <div class="chat-input-area">
+        <input type="text" id="chatMessageInput" placeholder="Message..." maxlength="500">
+        <button class="send-btn" id="btnSendMsg">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH USER OVERLAY -->
+  <div class="search-overlay" id="searchOverlay" style="display:none;">
+    <div class="search-box">
+      <h4>New Message</h4>
+      <input type="text" id="searchInput" placeholder="Enter username">
+      <div class="search-actions">
+        <button class="btn btn-outline" id="btnCancelSearch">Cancel</button>
+        <button class="btn btn-primary" id="btnStartChat">Chat</button>
+      </div>
+      <div class="auth-error" id="searchError" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+  <script>
+    (function() {
+      // ========== YOUR FIREBASE CONFIG ==========
+      const firebaseConfig = {
+        apiKey: "AIzaSyBgqz-yYPi1vLxuPpffkat44YhHhLe2Hsw",
+        authDomain: "freechat-vishal.firebaseapp.com",
+        databaseURL: "https://freechat-vishal-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "freechat-vishal",
+        storageBucket: "freechat-vishal.firebasestorage.app",
+        messagingSenderId: "40822804794",
+        appId: "1:40822804794:web:ad1cb9046aa20b1a658003"
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+      const auth = firebase.auth();
+
+      // DOM refs
+      const authScreen = document.getElementById('authScreen');
+      const appContainer = document.getElementById('appContainer');
+      const authUsername = document.getElementById('authUsername');
+      const authPassword = document.getElementById('authPassword');
+      const btnLogin = document.getElementById('btnLogin');
+      const btnRegister = document.getElementById('btnRegister');
+      const authError = document.getElementById('authError');
+      const chatListScreen = document.getElementById('chatListScreen');
+      const chatScreen = document.getElementById('chatScreen');
+      const chatMessages = document.getElementById('chatMessages');
+      const typingHint = document.getElementById('typingHint');
+      const chatMessageInput = document.getElementById('chatMessageInput');
+      const btnSendMsg = document.getElementById('btnSendMsg');
+      const chatPartnerName = document.getElementById('chatPartnerName');
+      const btnBack = document.getElementById('btnBack');
+      const btnNewChat = document.getElementById('btnNewChat');
+      const btnLogout = document.getElementById('btnLogout');
+      const searchOverlay = document.getElementById('searchOverlay');
+      const searchInput = document.getElementById('searchInput');
+      const btnStartChat = document.getElementById('btnStartChat');
+      const btnCancelSearch = document.getElementById('btnCancelSearch');
+      const searchError = document.getElementById('searchError');
+
+      let myUsername = '';
+      let myUid = null;
+      let currentRoomId = null;
+      let currentPartner = null;
+      let presenceRef = null;
+      let typingRef = null;
+      let unsubscribes = [];
+
+      // Helper: simple SHA-256 for password hashing
+      async function sha256(msg) {
+        const buffer = new TextEncoder().encode(msg);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+      }
+      function formatTime(ts) { return new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+
+      // ========== AUTH ==========
+      async function login(username, password) {
+        const snap = await db.ref('users/' + username).once('value');
+        if (!snap.exists()) throw new Error('User not found');
+        if (snap.val().passwordHash !== await sha256(password)) throw new Error('Wrong password');
+        return true;
+      }
+      async function register(username, password) {
+        const snap = await db.ref('users/' + username).once('value');
+        if (snap.exists()) throw new Error('Username taken');
+        await db.ref('users/' + username).set({
+          passwordHash: await sha256(password),
+          createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        return true;
+      }
+
+      async function handleAuth(isRegister) {
+        const u = authUsername.value.trim();
+        const p = authPassword.value.trim();
+        authError.textContent = '';
+        if (!u || !p) return authError.textContent = 'Fill all fields';
+        if (u.length<2 || u.length>20 || p.length<4) return authError.textContent = 'Username 2-20, password 4+ chars';
+        if (!/^[a-z0-9_]+$/i.test(u)) return authError.textContent = 'Only letters, numbers, _';
+        try {
+          await auth.signInAnonymously();
+          if (isRegister) await register(u, p);
+          else await login(u, p);
+          myUsername = u;
+          myUid = auth.currentUser.uid;
+          // Presence
+          presenceRef = db.ref('presence/' + myUid);
+          await presenceRef.set({ username: myUsername, online: true });
+          presenceRef.onDisconnect().remove();
+          typingRef = db.ref('typing/' + myUid);
+          typingRef.onDisconnect().remove();
+
+          authScreen.style.display = 'none';
+          appContainer.style.display = 'flex';
+          loadChatList();
+        } catch(e) {
+          authError.textContent = e.message;
+          auth.signOut();
+        }
+      }
+
+      // ========== CHAT LIST ==========
+      async function loadChatList() {
+        chatListScreen.innerHTML = '';
+        const snap = await db.ref('userPrivateChats/' + myUsername).once('value');
+        const chatRooms = snap.val() || {};
+        const roomIds = Object.keys(chatRooms);
+        if (roomIds.length === 0) {
+          chatListScreen.innerHTML = '<div class="empty-chat-list">No conversations yet.<br>Tap + to start a new chat.</div>';
+          return;
+        }
+        roomIds.forEach(async (roomId) => {
+          const parts = roomId.replace('chat_','').split('_');
+          const partner = parts.find(p => p !== myUsername);
+          if (!partner) return;
+          // Get last message
+          const lastMsgSnap = await db.ref('privateChats/' + roomId + '/messages').limitToLast(1).once('value');
+          let lastMsg = 'No messages yet';
+          const lastMsgVal = lastMsgSnap.val();
+          if (lastMsgVal) {
+            const msg = Object.values(lastMsgVal)[0];
+            lastMsg = (msg.username === myUsername ? 'You: ' : '') + msg.message;
+          }
+          // Online status
+          let isOnline = false;
+          const presenceSnap = await db.ref('presence').once('value');
+          const presenceData = presenceSnap.val() || {};
+          for (let uid in presenceData) {
+            if (presenceData[uid].username === partner) { isOnline = true; break; }
+          }
+          // Render item
+          const div = document.createElement('div');
+          div.className = 'chat-item';
+          div.innerHTML = `
+            <div class="chat-avatar">${partner.charAt(0).toUpperCase()}</div>
+            <div class="chat-info">
+              <div class="chat-name">
+                ${partner} ${isOnline ? '<span class="online-badge"></span>' : ''}
+              </div>
+              <div class="last-message">${lastMsg}</div>
+            </div>
+          `;
+          div.addEventListener('click', () => openChat(roomId, partner));
+          chatListScreen.appendChild(div);
+        });
+        // Refresh online status every 5 seconds
+        clearInterval(window._refreshChatList);
+        window._refreshChatList = setInterval(refreshChatListOnlineStatus, 5000);
+      }
+
+      function refreshChatListOnlineStatus() {
+        db.ref('presence').once('value', snap => {
+          const presence = snap.val() || {};
+          document.querySelectorAll('.chat-item').forEach(item => {
+            const name = item.querySelector('.chat-name')?.textContent.trim();
+            if (!name) return;
+            const isOnline = Object.values(presence).some(u => u.username === name);
+            let badge = item.querySelector('.online-badge');
+            if (isOnline) {
+              if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'online-badge';
+                item.querySelector('.chat-name').appendChild(badge);
+              }
+            } else {
+              if (badge) badge.remove();
+            }
+          });
+        });
+      }
+
+      // ========== OPEN CHAT ==========
+      function openChat(roomId, partner) {
+        currentRoomId = roomId;
+        currentPartner = partner;
+        chatPartnerName.textContent = partner;
+        chatListScreen.style.display = 'none';
+        chatScreen.style.display = 'flex';
+        chatMessages.innerHTML = '';
+        attachChatListeners(roomId);
+        chatMessageInput.focus();
+      }
+
+      function attachChatListeners(roomId) {
+        unsubscribes.forEach(fn => fn());
+        unsubscribes = [];
+        const msgRef = db.ref('privateChats/' + roomId + '/messages').limitToLast(200);
+        const unsub1 = msgRef.on('child_added', snap => {
+          const msg = snap.val();
+          if (msg && currentRoomId === roomId) renderMessage(msg);
+        });
+        unsubscribes.push(() => db.ref('privateChats/' + roomId + '/messages').off('child_added', unsub1));
+        const typingRefPvt = db.ref('privateTyping/' + roomId);
+        const unsub2 = typingRefPvt.on('value', snap => {
+          const typings = snap.val() || {};
+          for (let uid in typings) {
+            if (typings[uid] && typings[uid].username !== myUsername) {
+              typingHint.textContent = typings[uid].username + ' is typing...';
+              clearTimeout(window._typingClear);
+              window._typingClear = setTimeout(() => typingHint.textContent='', 2000);
+              break;
+            }
+          }
+        });
+        unsubscribes.push(() => db.ref('privateTyping/' + roomId).off('value', unsub2));
+      }
+
+      function renderMessage(data) {
+        const isMine = (data.username === myUsername);
+        const row = document.createElement('div');
+        row.className = 'msg-row ' + (isMine ? 'mine' : 'other');
+        const avatar = document.createElement('div');
+        avatar.className = 'msg-avatar';
+        avatar.textContent = data.username.charAt(0).toUpperCase();
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.textContent = data.message;
+        const time = document.createElement('div');
+        time.className = 'msg-time';
+        time.textContent = formatTime(data.timestamp);
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+        row.appendChild(time);
+        chatMessages.appendChild(row);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function sendMessage() {
+        const msg = chatMessageInput.value.trim();
+        if (!msg || !currentRoomId) return;
+        db.ref('privateChats/' + currentRoomId + '/messages').push({
+          username: myUsername,
+          message: msg,
+          timestamp: Date.now()
+        });
+        // update last message for both users (for chat list)
+        db.ref('userPrivateChats/' + myUsername + '/' + currentRoomId).set(true);
+        db.ref('userPrivateChats/' + currentPartner + '/' + currentRoomId).set(true);
+        chatMessageInput.value = '';
+      }
+
+      function sendTyping() {
+        if (!myUid || !currentRoomId) return;
+        db.ref('privateTyping/' + currentRoomId + '/' + myUid).set({
+          username: myUsername,
+          timestamp: Date.now()
+        });
+        clearTimeout(window._typingSend);
+        window._typingSend = setTimeout(() => {
+          db.ref('privateTyping/' + currentRoomId + '/' + myUid).remove();
+        }, 1500);
+      }
+
+      // ========== NEW CHAT ==========
+      function startNewChat() {
+        searchInput.value = '';
+        searchError.textContent = '';
+        searchOverlay.style.display = 'flex';
+        searchInput.focus();
+      }
+
+      async function startChatWithUser() {
+        const username = searchInput.value.trim();
+        if (!username) return searchError.textContent = 'Enter username';
+        if (username === myUsername) return searchError.textContent = 'Cannot chat with yourself';
+        // check if user exists in 'users' node
+        const snap = await db.ref('users/' + username).once('value');
+        if (!snap.exists()) return searchError.textContent = 'User not found';
+        const users = [myUsername, username].sort();
+        const roomId = 'chat_' + users[0] + '_' + users[1];
+        // create chat entry for both
+        db.ref('privateChats/' + roomId + '/participants').set({ user1: users[0], user2: users[1] });
+        db.ref('userPrivateChats/' + myUsername + '/' + roomId).set(true);
+        db.ref('userPrivateChats/' + username + '/' + roomId).set(true);
+        searchOverlay.style.display = 'none';
+        loadChatList(); // refresh list
+        openChat(roomId, username);
+      }
+
+      // ========== BACK TO CHAT LIST ==========
+      function backToList() {
+        unsubscribes.forEach(fn => fn());
+        currentRoomId = null;
+        currentPartner = null;
+        chatScreen.style.display = 'none';
+        chatListScreen.style.display = 'block';
+        loadChatList();
+        typingHint.textContent = '';
+      }
+
+      // ========== LOGOUT ==========
+      async function logout() {
+        if (presenceRef) presenceRef.remove();
+        if (typingRef) typingRef.remove();
+        unsubscribes.forEach(fn => fn());
+        await auth.signOut();
+        myUsername = '';
+        appContainer.style.display = 'none';
+        authScreen.style.display = 'block';
+        chatListScreen.innerHTML = '';
+        authUsername.value = '';
+        authPassword.value = '';
+        clearInterval(window._refreshChatList);
+      }
+
+      // ========== EVENT LISTENERS ==========
+      btnLogin.addEventListener('click', ()=> handleAuth(false));
+      btnRegister.addEventListener('click', ()=> handleAuth(true));
+      authPassword.addEventListener('keydown', e=> { if(e.key==='Enter') handleAuth(false); });
+      btnLogout.addEventListener('click', logout);
+      btnNewChat.addEventListener('click', startNewChat);
+      btnCancelSearch.addEventListener('click', ()=> searchOverlay.style.display='none');
+      btnStartChat.addEventListener('click', startChatWithUser);
+      searchInput.addEventListener('keydown', e=> { if(e.key==='Enter') startChatWithUser(); });
+      btnBack.addEventListener('click', backToList);
+      btnSendMsg.addEventListener('click', sendMessage);
+      chatMessageInput.addEventListener('keydown', e=> { if(e.key==='Enter'){ e.preventDefault(); sendMessage(); } });
+      chatMessageInput.addEventListener('input', ()=> { if(chatMessageInput.value.trim()) sendTyping(); });
+
+      // Initial focus
+      authUsername.focus();
+    })();
+  </script>
+</body>
+</html>
